@@ -30,8 +30,6 @@ except Exception as e:
     print("❌ MONAI import error:", e)
     MONAI_AVAILABLE = False
 
-# ================= MODEL =================
-model = None
 
 import requests
 
