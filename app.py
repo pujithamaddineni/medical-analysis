@@ -33,14 +33,16 @@ except Exception as e:
 # ================= MODEL =================
 model = None
 
-import gdown
+import requests
 
-MODEL_URL = "https://drive.google.com/uc?id=1Gd528I6N3sXAZzkcvoq4pRwKc33wBo1I"
+MODEL_URL = "https://drive.google.com/uc?export=download&id=1Gd528I6N3sXAZzkcvoq4pRwKc33wBo1I"
 
 if not os.path.exists("model.pth"):
     print("⬇️ Downloading model...")
     try:
-        gdown.download(MODEL_URL, "model.pth", quiet=False)
+        response = requests.get(MODEL_URL)
+        with open("model.pth", "wb") as f:
+            f.write(response.content)
         print("✅ Model downloaded")
     except Exception as e:
         print("❌ Download failed:", e)
