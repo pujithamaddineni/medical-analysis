@@ -35,14 +35,14 @@ model = None
 
 import requests
 
-MODEL_URL = "https://drive.google.com/uc?export=download&id=1Gd528I6N3sXAZzkcvoq4pRwKc33wBo1I"
+MODEL_URL = "https://huggingface.co/pujitha15/medio/resolve/main/model.pth"
 
 if not os.path.exists("model.pth"):
-    print("⬇️ Downloading model...")
+    print("⬇️ Downloading model from Hugging Face...")
     try:
-        response = requests.get(MODEL_URL)
+        r = requests.get(MODEL_URL, timeout=60)
         with open("model.pth", "wb") as f:
-            f.write(response.content)
+            f.write(r.content)
         print("✅ Model downloaded")
     except Exception as e:
         print("❌ Download failed:", e)
