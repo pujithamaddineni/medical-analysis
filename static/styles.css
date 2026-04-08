@@ -1,0 +1,143 @@
+/* Background */
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, black, #2575fc);
+    color: white;
+}
+
+/* Main Wrapper */
+.main-bg {
+    text-align: center;
+    padding: 30px;
+}
+
+/* Titles */
+.title {
+    font-size: 40px;
+    margin-bottom: 5px;
+}
+
+.subtitle {
+    font-size: 16px;
+    margin-bottom: 30px;
+    opacity: 0.9;
+}
+
+/* Layout */
+.container {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    flex-wrap: wrap;
+}
+
+/* Glass Card */
+.glass-card {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    padding: 25px;
+    width: 320px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: 0.3s;
+}
+
+/* Hover Effect */
+.glass-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Upload Box */
+.drop-zone {
+    border: 2px dashed rgba(255,255,255,0.6);
+    padding: 30px;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-bottom: 15px;
+    transition: 0.3s;
+}
+
+.drop-zone:hover {
+    background: rgba(255,255,255,0.15);
+}
+
+/* Button */
+.btn-primary {
+    background: #ffffff;
+    color: #333;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.btn-primary:hover {
+    background: #ddd;
+    transform: scale(1.05);
+}
+
+/* Info Styling */
+ul {
+    text-align: left;
+    padding-left: 20px;
+}
+
+p {
+    font-size: 14px;
+}
+
+/* RESULT PAGE STYLING */
+
+/* Result Card */
+.result-card {
+    text-align: center;
+}
+
+/* Diagnosis Text */
+.result-text {
+    font-size: 28px;
+    margin: 10px 0;
+    font-weight: bold;
+}
+
+/* Probability Section */
+.probabilities p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+/* Circular Info Card */
+.circle-card {
+    width: 350px;
+    height: 350px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    transition: 0.3s;
+}
+
+/* Hover Effect */
+.circle-card:hover {
+    transform: scale(1.05);
+}
+
+/* Inside Circle */
+.circle-content {
+    text-align: center;
+    padding: 20px;
+    font-size: 13px;
+}
+
+/* Headings inside circle */
+.circle-content h3 {
+    margin: 5px 0;
+    font-size: 14px;
+}

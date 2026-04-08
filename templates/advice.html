@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NeuroScan Result</title>
+
+    <!-- ✅ FIXED CSS PATH -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+<div class="main-bg">
+    <h1 class="title">🧠 Prediction Result</h1>
+
+    <div class="container">
+
+        <!-- LEFT: Prediction -->
+        <div class="left">
+            <div class="glass-card result-card">
+                <h2>Diagnosis</h2>
+
+                <!-- ✅ SAFE VARIABLE -->
+                <h1 class="result-text">{{ diagnosis or "No Result" }}</h1>
+
+                <div class="result-clean">
+                    <p class="confidence-text">{{ note }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Circular Info -->
+        <div class="right">
+            <div class="circle-card">
+                <div class="circle-content">
+
+                    {% if diagnosis and "Healthy" in diagnosis %}
+                        <h3>Symptoms</h3>
+                        <p>No major cognitive decline</p>
+
+                        <h3>Causes</h3>
+                        <p>Normal aging process</p>
+
+                        <h3>Precautions</h3>
+                        <p>Exercise, mental activities, healthy diet</p>
+
+                    {% elif diagnosis and "MCI" in diagnosis %}
+                        <h3>Symptoms</h3>
+                        <p>Mild memory loss, slight confusion</p>
+
+                        <h3>Causes</h3>
+                        <p>Early brain cell changes</p>
+
+                        <h3>Precautions</h3>
+                        <p>Monitor health, cognitive training, diet</p>
+
+                    {% elif diagnosis %}
+                        <h3>Symptoms</h3>
+                        <p>Severe memory loss, confusion, behavior changes</p>
+
+                        <h3>Causes</h3>
+                        <p>Brain cell degeneration</p>
+
+                        <h3>Precautions</h3>
+                        <p>Medical care, support system, routine management</p>
+
+                    {% else %}
+                        <p>No diagnosis available</p>
+                    {% endif %}
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 🔙 Back Button -->
+    <div style="margin-top: 20px;">
+        <a href="/" class="btn-primary">⬅ Back</a>
+    </div>
+
+</div>
+
+</body>
+</html>

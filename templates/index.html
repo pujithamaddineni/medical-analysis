@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NeuroScan AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+<div class="main-bg">
+    <h1 class="title">🧠 NeuroScan AI</h1>
+    <p class="subtitle">Upload MRI Scan for Alzheimer's Detection</p>
+
+    <div class="container">
+        
+        <!-- LEFT: Upload -->
+        <div class="left">
+            <div class="glass-card upload-card">
+                <h2>Upload Scan</h2>
+
+                <form action="/predict" method="POST" enctype="multipart/form-data">
+                    
+                    <div class="drop-zone" id="dropZone">
+                        <p id="fileText">📂 Click or Drag & Drop DICOM Files</p>
+                        <input type="file" name="file" id="fileInput" multiple required hidden>
+                    </div>
+
+                    <button type="submit" class="btn-primary">
+                        Analyze Brain
+                    </button>
+                </form>
+
+            </div>
+        </div>
+
+        <!-- RIGHT: Info -->
+        <div class="right">
+            <div class="glass-card info-card">
+                <h3>Disease Types</h3>
+                <ul>
+                    <li>Healthy (CN)</li>
+                    <li>Mild Cognitive Impairment (MCI)</li>
+                    <li>Alzheimer's Disease (AD)</li>
+                </ul>
+
+                <h3>Why it Occurs</h3>
+                <p>
+                    Alzheimer's disease occurs due to brain cell degeneration,
+                    abnormal protein buildup, aging, and genetic factors.
+                </p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- JS for Drag & Drop + File Count -->
+<script>
+const dropZone = document.getElementById("dropZone");
+const fileInput = document.getElementById("fileInput");
+const fileText = document.getElementById("fileText");
+
+// Click to open file dialog
+dropZone.addEventListener("click", () => fileInput.click());
+
+// Drag over
+dropZone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropZone.style.background = "rgba(255,255,255,0.2)";
+});
+
+// Drag leave
+dropZone.addEventListener("dragleave", () => {
+    dropZone.style.background = "rgba(255,255,255,0.1)";
+});
+
+// Drop files
+dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    fileInput.files = e.dataTransfer.files;
+    updateFileText();
+});
+
+// File select
+fileInput.addEventListener("change", updateFileText);
+
+// Update UI text
+function updateFileText() {
+    const count = fileInput.files.length;
+    fileText.innerText = ` ${count} file(s) selected`;
+}
+</script>
+
+</body>
+</html>
