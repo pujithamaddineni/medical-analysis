@@ -3,7 +3,8 @@ import os
 import shutil
 import torch
 import torch.nn.functional as F
-import urllib.request
+import requests
+import gc
 
 app = Flask(__name__)
 
@@ -30,9 +31,7 @@ except Exception as e:
     print("❌ MONAI import error:", e)
     MONAI_AVAILABLE = False
 
-
-import requests
-
+# ================= DOWNLOAD MODEL =================
 MODEL_URL = "https://huggingface.co/pujitha15/medio/resolve/main/model.pth"
 
 if not os.path.exists("model.pth"):
@@ -45,21 +44,27 @@ if not os.path.exists("model.pth"):
     except Exception as e:
         print("❌ Download failed:", e)
 
-# 🔥 LOAD MODEL
-if MONAI_AVAILABLE:
-    try:
-        if os.path.exists("model.pth"):
-            print("Loading model...")
-            model = DenseNet121(spatial_dims=3, in_channels=1, out_channels=3).to(device)
+# ================= MODEL =================
+model = None
+
+def load_model():
+    global model
+    if model is None:
+        print("🔄 Loading model...")
+        try:
+            model = DenseNet121(
+                spatial_dims=3,
+                in_channels=1,
+                out_channels=3
+            ).to(device)
+
             model.load_state_dict(torch.load("model.pth", map_location=device))
             model.eval()
+
             print("✅ Model loaded successfully")
-        else:
-            print("⚠️ model.pth not found")
-        model = None
-    except Exception as e:
-        print("❌ Model load failed:", e)
-        model = None
+        except Exception as e:
+            print("❌ Model load failed:", e)
+            model = None
 
 # ================= TRANSFORMS =================
 if MONAI_AVAILABLE:
@@ -97,12 +102,20 @@ def predict():
 
         print("Uploaded files:", os.listdir(session_path))
 
-        # ========= FALLBACK =========
-        if not MONAI_AVAILABLE or model is None:
-            print("⚠️ Using fallback (model not available)")
+        # ========= CHECK MONAI =========
+        if not MONAI_AVAILABLE:
             return render_template('advice.html',
                                    diagnosis="Demo Result",
-                                   note="Model not loaded")
+                                   note="MONAI not available")
+
+        # ========= LOAD MODEL LAZILY =========
+        if model is None:
+            load_model()
+
+        if model is None:
+            return render_template('advice.html',
+                                   diagnosis="Demo Result",
+                                   note="Model failed to load")
 
         # ========= DICOM → NIFTI =========
         try:
@@ -132,20 +145,17 @@ def predict():
         input_tensor = processed["image"].unsqueeze(0).to(device)
 
         print("Input shape:", input_tensor.shape)
-        print("Input min/max:", input_tensor.min().item(), input_tensor.max().item())
 
         # ========= PREDICTION =========
         with torch.no_grad():
             logits = model(input_tensor)
             probs = F.softmax(logits, dim=1)
 
-        print("Raw probabilities:", probs)
-
         p_ad = probs[0][2].item() * 100
         p_mci = probs[0][1].item() * 100
         p_cn = probs[0][0].item() * 100
 
-        # ========= DECISION LOGIC =========
+        # ========= DECISION =========
         if p_ad > 70:
             diagnosis = "Alzheimer (AD)"
             note = "High Confidence Alzheimer Detection"
@@ -164,12 +174,18 @@ def predict():
             diagnosis = classes[probs_list.index(max(probs_list))]
             note = "Moderate Confidence Prediction"
 
+        # ========= MEMORY CLEANUP =========
+        del input_tensor
+        del logits
+        del probs
+        gc.collect()
+
         return render_template('advice.html',
                                diagnosis=diagnosis,
                                note=note)
 
     except Exception as e:
-        print(" SERVER ERROR:", e)
+        print("SERVER ERROR:", e)
         return "Internal Server Error"
 
 
