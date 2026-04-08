@@ -22,7 +22,6 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # ================= MODEL =================
 device = torch.device("cpu")
-model = None
 
 if MONAI_AVAILABLE:
     try:
