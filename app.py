@@ -33,27 +33,30 @@ except Exception as e:
 # ================= MODEL =================
 model = None
 
-# 🔥 MODEL DOWNLOAD (IMPORTANT)
+import gdown
+
 MODEL_URL = "https://drive.google.com/uc?id=1Gd528I6N3sXAZzkcvoq4pRwKc33wBo1I"
+
 if not os.path.exists("model.pth"):
+    print("⬇️ Downloading model...")
     try:
-        print("⬇️ Downloading model...")
-        urllib.request.urlretrieve(MODEL_URL, "model.pth")
+        gdown.download(MODEL_URL, "model.pth", quiet=False)
         print("✅ Model downloaded")
     except Exception as e:
-        print("❌ Model download failed:", e)
+        print("❌ Download failed:", e)
 
 # 🔥 LOAD MODEL
 if MONAI_AVAILABLE:
     try:
         if os.path.exists("model.pth"):
+            print("Loading model...")
             model = DenseNet121(spatial_dims=3, in_channels=1, out_channels=3).to(device)
             model.load_state_dict(torch.load("model.pth", map_location=device))
             model.eval()
             print("✅ Model loaded successfully")
         else:
             print("⚠️ model.pth not found")
-            model = None
+        model = None
     except Exception as e:
         print("❌ Model load failed:", e)
         model = None
