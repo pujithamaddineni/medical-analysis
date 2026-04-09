@@ -93,12 +93,12 @@ def predict():
             diagnosis = "Alzheimer (AD)"
             note = "Signs of Alzheimer's detected. Please consult a neurologist."
 
-        elif mci > 0.4:
-            diagnosis = "Mild Cognitive Impairment (MCI)"
+        elif cn > 0.6:
+            diagnosis = "Cognitive Disease"
             note = "Early stage cognitive decline detected."
 
         else:
-            diagnosis = "Healthy (CN)"
+            diagnosis = "MCI"
             note = "No significant abnormalities detected."
 
         os.remove(filepath)
