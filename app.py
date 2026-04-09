@@ -1,195 +1,115 @@
 from flask import Flask, render_template, request
 import os
-import shutil
-import torch
-import torch.nn.functional as F
-import requests
-import gc
+import numpy as np
+import nibabel as nib
+import onnxruntime as ort
 
 app = Flask(__name__)
 
-UPLOAD_DIR = 'static/uploads'
+UPLOAD_DIR = "static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# ================= DEVICE =================
-device = torch.device("cpu")
-
-# ================= OPTIONAL IMPORTS =================
-MONAI_AVAILABLE = True
-
-try:
-    import dicom2nifti
-    import dicom2nifti.settings as settings
-except Exception as e:
-    print("❌ DICOM import error:", e)
-    MONAI_AVAILABLE = False
-
-try:
-    from monai.networks.nets import DenseNet121
-    from monai.transforms import Compose, LoadImaged, EnsureChannelFirstd, Resized, ScaleIntensityd, Orientationd
-except Exception as e:
-    print("❌ MONAI import error:", e)
-    MONAI_AVAILABLE = False
-
-# ================= DOWNLOAD MODEL =================
-MODEL_URL = "https://huggingface.co/pujitha15/medio/resolve/main/model.pth"
-
-if not os.path.exists("model.pth"):
-    print("⬇️ Downloading model from Hugging Face...")
-    try:
-        r = requests.get(MODEL_URL, timeout=60)
-        with open("model.pth", "wb") as f:
-            f.write(r.content)
-        print("✅ Model downloaded")
-    except Exception as e:
-        print("❌ Download failed:", e)
-
 # ================= MODEL =================
-model = None
+session = None
 
 def load_model():
-    global model
-    if model is None:
-        print("🔄 Loading model...")
-        try:
-            model = DenseNet121(
-                spatial_dims=3,
-                in_channels=1,
-                out_channels=3
-            ).to(device)
+    global session
+    if session is None:
+        print("🔄 Loading ONNX model...")
+        session = ort.InferenceSession("model.onnx")
+        print("✅ Model loaded")
 
-            model.load_state_dict(torch.load("model.pth", map_location=device))
-            model.eval()
 
-            print("✅ Model loaded successfully")
-        except Exception as e:
-            print("❌ Model load failed:", e)
-            model = None
+# ================= PREPROCESS =================
+def preprocess_nifti(file_path):
+    img = nib.load(file_path)
+    data = img.get_fdata()
 
-# ================= TRANSFORMS =================
-if MONAI_AVAILABLE:
-    predict_transforms = Compose([
-        LoadImaged(keys=["image"]),
-        EnsureChannelFirstd(keys=["image"]),
-        Orientationd(keys=["image"], axcodes="RAS"),
-        ScaleIntensityd(keys=["image"]),
-        Resized(keys=["image"], spatial_size=(128, 128, 128), mode="trilinear"),
-    ])
+    # Normalize
+    data = (data - np.min(data)) / (np.max(data) - np.min(data) + 1e-8)
+
+    # Resize to (64,64,64)
+    data = resize_volume(data, (64, 64, 64))
+
+    # Add channel + batch
+    data = np.expand_dims(data, axis=0)  # channel
+    data = np.expand_dims(data, axis=0)  # batch
+
+    return data.astype(np.float32)
+
+
+def resize_volume(img, target_shape):
+    from scipy.ndimage import zoom
+
+    factors = (
+        target_shape[0] / img.shape[0],
+        target_shape[1] / img.shape[1],
+        target_shape[2] / img.shape[2],
+    )
+
+    return zoom(img, factors, order=1)
+
 
 # ================= ROUTES =================
-@app.route('/')
+@app.route("/")
 def home():
-    return render_template('index.html')
+    return render_template("index.html")
 
 
-@app.route('/predict', methods=['POST'])
+@app.route("/predict", methods=["POST"])
 def predict():
     try:
-        files = request.files.getlist("file")
+        file = request.files["file"]
 
-        if not files or files[0].filename == "":
-            return "No files uploaded"
+        if file.filename == "":
+            return "No file selected"
 
-        session_path = os.path.join(UPLOAD_DIR, "scan")
+        if not file.filename.endswith((".nii", ".nii.gz")):
+            return "Please upload a valid NIFTI file (.nii or .nii.gz)"
 
-        if os.path.exists(session_path):
-            shutil.rmtree(session_path)
-        os.makedirs(session_path)
+        filepath = os.path.join(UPLOAD_DIR, file.filename)
+        file.save(filepath)
 
-        # ========= SAVE FILES =========
-        for f in files:
-            f.save(os.path.join(session_path, f.filename))
+        # Load model
+        load_model()
 
-        print("Uploaded files:", os.listdir(session_path))
+        # Preprocess
+        input_data = preprocess_nifti(filepath)
 
-        # ========= CHECK MONAI =========
-        if not MONAI_AVAILABLE:
-            return render_template('advice.html',
-                                   diagnosis="Demo Result",
-                                   note="MONAI not available")
+        # Prediction
+        input_name = session.get_inputs()[0].name
+        outputs = session.run(None, {input_name: input_data})
+        logits = outputs[0]
 
-        # ========= LOAD MODEL LAZILY =========
-        if model is None:
-            load_model()
+        # Stable softmax
+        exp_vals = np.exp(logits - np.max(logits))
+        probs = exp_vals / np.sum(exp_vals, axis=1, keepdims=True)
 
-        if model is None:
-            return render_template('advice.html',
-                                   diagnosis="Demo Result",
-                                   note="Model failed to load")
+        cn, mci, ad = probs[0]
 
-        # ========= DICOM → NIFTI =========
-        try:
-            settings.disable_validate_slice_increment()
-
-            dicom2nifti.convert_directory(
-                session_path,
-                UPLOAD_DIR,
-                compression=True,
-                reorient=True
-            )
-
-            nifti_files = [f for f in os.listdir(UPLOAD_DIR) if f.endswith(".nii.gz")]
-
-            if not nifti_files:
-                return "No valid DICOM series found"
-
-            nifti_path = os.path.join(UPLOAD_DIR, nifti_files[0])
-
-        except Exception as e:
-            print("❌ Conversion Error:", e)
-            return f"DICOM conversion failed: {str(e)}"
-
-        # ========= PREPROCESS =========
-        data_dict = {"image": nifti_path}
-        processed = predict_transforms(data_dict)
-        input_tensor = processed["image"].unsqueeze(0).to(device)
-
-        print("Input shape:", input_tensor.shape)
-
-        # ========= PREDICTION =========
-        with torch.no_grad():
-            logits = model(input_tensor)
-            probs = F.softmax(logits, dim=1)
-
-        p_ad = probs[0][2].item() * 100
-        p_mci = probs[0][1].item() * 100
-        p_cn = probs[0][0].item() * 100
-
-        # ========= DECISION =========
-        if p_ad > 70:
+        # Smart decision logic
+        if ad > 0.6:
             diagnosis = "Alzheimer (AD)"
-            note = "High Confidence Alzheimer Detection"
+            note = "Signs of Alzheimer's detected. Please consult a neurologist."
 
-        elif p_cn > 70:
-            diagnosis = "Healthy (CN)"
-            note = "High Confidence Healthy Brain"
-
-        elif p_mci > 30:
-            diagnosis = "MCI"
-            note = "Early Stage Cognitive Impairment Detected"
+        elif mci > 0.4:
+            diagnosis = "Mild Cognitive Impairment (MCI)"
+            note = "Early stage cognitive decline detected. Medical evaluation recommended."
 
         else:
-            probs_list = [p_ad, p_mci, p_cn]
-            classes = ["Alzheimer (AD)", "MCI", "Healthy (CN)"]
-            diagnosis = classes[probs_list.index(max(probs_list))]
-            note = "Moderate Confidence Prediction"
+            diagnosis = "Healthy (CN)"
+            note = "No significant abnormalities detected."
 
-        # ========= MEMORY CLEANUP =========
-        del input_tensor
-        del logits
-        del probs
-        gc.collect()
-
-        return render_template('advice.html',
+        return render_template("advice.html",
                                diagnosis=diagnosis,
                                note=note)
 
     except Exception as e:
-        print("SERVER ERROR:", e)
-        return "Internal Server Error"
+        import traceback
+        traceback.print_exc()
+        return "Error: " + str(e)
 
 
 # ================= RUN =================
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
