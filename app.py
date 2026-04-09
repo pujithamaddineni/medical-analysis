@@ -25,8 +25,12 @@ def preprocess_nifti(file_path):
     img = nib.load(file_path)
     data = img.get_fdata()
 
+<<<<<<< HEAD
     # Normalize
     data = (data - np.min(data)) / (np.max(data) - np.min(data) + 1e-8)
+=======
+MODEL_URL = "https://huggingface.co/pujitha15/model_resized/resolve/main/model_fp16.pth"
+>>>>>>> 04f31251dfbd0a6938c2389992376a2c74516da4
 
     # Resize to (64,64,64)
     data = resize_volume(data, (64, 64, 64))
@@ -111,5 +115,11 @@ def predict():
 
 
 # ================= RUN =================
+<<<<<<< HEAD
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+=======
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+>>>>>>> 04f31251dfbd0a6938c2389992376a2c74516da4
