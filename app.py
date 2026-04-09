@@ -11,12 +11,14 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # ================= MODEL =================
 session = None
+input_name = None
 
 def load_model():
-    global session
+    global session, input_name
     if session is None:
         print("🔄 Loading ONNX model...")
-        session = ort.InferenceSession("model.onnx")
+        session = ort.InferenceSession("model_final.onnx")
+        input_name = session.get_inputs()[0].name
         print("✅ Model loaded")
 
 
@@ -25,19 +27,18 @@ def preprocess_nifti(file_path):
     img = nib.load(file_path)
     data = img.get_fdata()
 
-<<<<<<< HEAD
+    # Handle NaN
+    data = np.nan_to_num(data)
+
     # Normalize
     data = (data - np.min(data)) / (np.max(data) - np.min(data) + 1e-8)
-=======
-MODEL_URL = "https://huggingface.co/pujitha15/model_resized/resolve/main/model_fp16.pth"
->>>>>>> 04f31251dfbd0a6938c2389992376a2c74516da4
 
-    # Resize to (64,64,64)
+    # Resize
     data = resize_volume(data, (64, 64, 64))
 
     # Add channel + batch
-    data = np.expand_dims(data, axis=0)  # channel
-    data = np.expand_dims(data, axis=0)  # batch
+    data = np.expand_dims(data, axis=0)
+    data = np.expand_dims(data, axis=0)
 
     return data.astype(np.float32)
 
@@ -74,35 +75,33 @@ def predict():
         filepath = os.path.join(UPLOAD_DIR, file.filename)
         file.save(filepath)
 
-        # Load model
         load_model()
 
-        # Preprocess
         input_data = preprocess_nifti(filepath)
 
-        # Prediction
-        input_name = session.get_inputs()[0].name
         outputs = session.run(None, {input_name: input_data})
         logits = outputs[0]
 
         # Stable softmax
-        exp_vals = np.exp(logits - np.max(logits))
+        logits = logits - np.max(logits, axis=1, keepdims=True)
+        exp_vals = np.exp(logits)
         probs = exp_vals / np.sum(exp_vals, axis=1, keepdims=True)
 
         cn, mci, ad = probs[0]
 
-        # Smart decision logic
         if ad > 0.6:
             diagnosis = "Alzheimer (AD)"
             note = "Signs of Alzheimer's detected. Please consult a neurologist."
 
         elif mci > 0.4:
             diagnosis = "Mild Cognitive Impairment (MCI)"
-            note = "Early stage cognitive decline detected. Medical evaluation recommended."
+            note = "Early stage cognitive decline detected."
 
         else:
             diagnosis = "Healthy (CN)"
             note = "No significant abnormalities detected."
+
+        os.remove(filepath)
 
         return render_template("advice.html",
                                diagnosis=diagnosis,
@@ -115,11 +114,6 @@ def predict():
 
 
 # ================= RUN =================
-<<<<<<< HEAD
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
-=======
-if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
->>>>>>> 04f31251dfbd0a6938c2389992376a2c74516da4
