@@ -1,5 +1,6 @@
 Alzheimer’s Disease Detection Using Deep Learning
 
+Deploy link::https://medical-analysis.onrender.com
 
 Concept Summary
 
