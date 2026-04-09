@@ -33,7 +33,7 @@ except Exception as e:
 
 import requests
 
-MODEL_URL = "https://huggingface.co/pujitha15/medio/resolve/main/model.pth"
+MODEL_URL = "https://huggingface.co/pujitha15/model_resized/resolve/main/model_fp16.pth"
 
 if not os.path.exists("model.pth"):
     print("⬇️ Downloading model from Hugging Face...")
